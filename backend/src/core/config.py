@@ -8,7 +8,9 @@ def _normalise_database_url(raw: str) -> str:
     - SQLite gets the aiosqlite driver.
     - Render gives Postgres URLs starting with `postgres://`; SQLAlchemy
       rejects those — convert to `postgresql+asyncpg://`.
-    - Render Postgres also needs SSL — we add `?ssl=true` if missing.
+    - All query-string parameters (sslmode, etc.) are STRIPPED.
+      asyncpg does not understand sslmode; SSL is configured in
+      database.py via connect_args={"ssl": True} instead.
     """
     if not raw:
         return "sqlite+aiosqlite:///./fcess.db"
@@ -27,17 +29,10 @@ def _normalise_database_url(raw: str) -> str:
     elif url.startswith("postgresql://"):
         url = "postgresql+asyncpg://" + url[len("postgresql://"):]
 
-    # asyncpg wants `ssl=true`, not `sslmode=require`. Strip sslmode and
-    # ensure ssl=true is set so Render Postgres accepts the connection.
-    if "postgresql+asyncpg://" in url:
-        # remove sslmode=... (asyncpg doesn't understand it)
-        if "sslmode=" in url:
-            import re
-            url = re.sub(r"[?&]sslmode=[^&]*", "", url)
-            url = url.replace("?&", "?")
-        if "ssl=" not in url:
-            sep = "&" if "?" in url else "?"
-            url += f"{sep}ssl=true"
+    # STRIP ALL QUERY PARAMS - asyncpg doesn't accept sslmode/channel_binding/etc.
+    # SSL is configured in database.py via connect_args.
+    if "?" in url:
+        url = url.split("?", 1)[0]
 
     return url
 
