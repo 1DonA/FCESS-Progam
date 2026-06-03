@@ -83,17 +83,37 @@ async def _ensure_schema():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-        # SQLite-friendly ALTERs for columns added after release.
+        # Dialect-aware ALTERs for columns added after release.
+        # On Postgres we use information_schema; on SQLite we use PRAGMA.
+        from backend.src.core.config import settings as _settings
+        IS_SQLITE = _settings.IS_SQLITE
+
         def _patch(sync_conn):
             from sqlalchemy import text
-            def add_if_missing(table, col, ddl):
+            def add_if_missing(table, col, sqlite_ddl, postgres_ddl=None):
                 try:
-                    cols = sync_conn.execute(text(f"PRAGMA table_info({table})")).fetchall()
-                    names = {c[1] for c in cols}
-                    if col not in names:
-                        sync_conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}"))
+                    if IS_SQLITE:
+                        cols = sync_conn.execute(text(f"PRAGMA table_info({table})")).fetchall()
+                        names = {c[1] for c in cols}
+                        if col not in names:
+                            sync_conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {sqlite_ddl}"))
+                    else:
+                        # Postgres: information_schema lookup
+                        ddl = postgres_ddl or sqlite_ddl
+                        # CHAR(36) -> UUID isn't safe to assume; we just keep nullable.
+                        ddl = (ddl.replace("CHAR(36)", "VARCHAR(36)")
+                                  .replace(" NULL", ""))
+                        exists = sync_conn.execute(text(
+                            "SELECT 1 FROM information_schema.columns "
+                            "WHERE table_name = :t AND column_name = :c"
+                        ), {"t": table, "c": col}).first()
+                        if not exists:
+                            sync_conn.execute(text(
+                                f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {ddl}"
+                            ))
                 except Exception:
                     pass
+
             add_if_missing("buildings", "department_id", "CHAR(36) NULL")
             add_if_missing("sections",  "kind",          "VARCHAR(20) DEFAULT 'COMBINED'")
             add_if_missing("sections",  "lecturer_id",   "CHAR(36) NULL")
@@ -105,12 +125,22 @@ async def _ensure_schema():
             # code: odd -> Fall (1), even -> Spring (2). Matches FIU
             # convention (MATH121=Fall, MATH122=Spring; CMPE315=Fall,
             # CMPE316=Spring; etc.)
+            # Heuristic backfill of semester_in_year using the last digit of the
+            # course code. SQL flavors differ - try the SQLite form first, then
+            # Postgres if that errored.
             try:
-                sync_conn.execute(text(
-                    "UPDATE courses SET semester_in_year = "
-                    "  CASE WHEN CAST(substr(code, length(code), 1) AS INTEGER) % 2 = 0 THEN 2 ELSE 1 END "
-                    "WHERE semester_in_year = 1"
-                ))
+                if IS_SQLITE:
+                    sync_conn.execute(text(
+                        "UPDATE courses SET semester_in_year = "
+                        "  CASE WHEN CAST(substr(code, length(code), 1) AS INTEGER) % 2 = 0 THEN 2 ELSE 1 END "
+                        "WHERE semester_in_year = 1"
+                    ))
+                else:
+                    sync_conn.execute(text(
+                        "UPDATE courses SET semester_in_year = "
+                        "  CASE WHEN CAST(right(code, 1) AS INTEGER) % 2 = 0 THEN 2 ELSE 1 END "
+                        "WHERE semester_in_year = 1"
+                    ))
             except Exception:
                 pass
         await conn.run_sync(_patch)
