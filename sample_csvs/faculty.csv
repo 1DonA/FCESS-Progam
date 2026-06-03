@@ -1,0 +1,5 @@
+first_name,last_name,email,department_code,rank,max_load_hours
+Amina,Okafor,a.okafor@uni.edu,CS,PROFESSOR,12
+Emeka,Chukwu,e.chukwu@uni.edu,CS,LECTURER,9
+Fatima,Bello,f.bello@uni.edu,MATH,PROFESSOR,12
+Yusuf,Adeyemi,y.adeyemi@uni.edu,MATH,ASSISTANT,6

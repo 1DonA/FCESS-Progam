@@ -1,0 +1,845 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>FCESS - Curriculum &amp; Schedule Admin</title>
+  <style>
+    :root { --bg:#0f172a; --panel:#fff; --panel-soft:#f8fafc; --border:#e2e8f0;
+            --text:#0f172a; --muted:#64748b; --accent:#2563eb; --accent-strong:#1d4ed8;
+            --danger:#dc2626; --danger-soft:#fee2e2; --warn:#d97706; --ok:#16a34a;
+            --shadow:0 6px 20px rgba(15,23,42,.08); }
+    * { box-sizing: border-box; }
+    html, body { margin:0; padding:0; }
+    body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+           background:var(--panel-soft); color:var(--text); line-height:1.45; }
+    .topbar { background:var(--bg); color:#f1f5f9; padding:14px 28px;
+              display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
+    .topbar h1 { margin:0; font-size:18px; font-weight:600; }
+    .topbar .grow { flex:1; }
+    .topbar .who { font-size:13px; color:#94a3b8; }
+    .layout { display:grid; grid-template-columns:220px 1fr; min-height:calc(100vh - 50px); }
+    nav.side { background:#f1f5f9; border-right:1px solid var(--border); padding:18px 10px; }
+    nav.side button { width:100%; text-align:left; background:transparent; border:none;
+                      padding:10px 14px; border-radius:8px; font-size:14px; color:#334155;
+                      cursor:pointer; margin-bottom:4px; }
+    nav.side button:hover { background:#e2e8f0; }
+    nav.side button.active { background:var(--accent); color:#fff; font-weight:600; }
+    nav.side .danger-btn { margin-top:28px; background:var(--danger-soft);
+                           color:var(--danger); font-weight:600; }
+    nav.side .danger-btn:hover { background:#fca5a5; color:#fff; }
+    main { padding:24px 28px; }
+    h2 { margin:0 0 4px 0; }
+    .sub { color:var(--muted); font-size:13px; margin-bottom:18px; }
+    .card { background:var(--panel); border:1px solid var(--border); border-radius:12px;
+            padding:18px; box-shadow:var(--shadow); margin-bottom:18px; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .input, select, textarea { border:1px solid var(--border); border-radius:8px;
+                               padding:8px 10px; font-size:14px; background:#fff;
+                               color:var(--text); min-width:140px; }
+    .input:focus, select:focus { outline:2px solid var(--accent); outline-offset:1px; }
+    .btn { border:none; background:var(--accent); color:#fff; padding:8px 14px;
+           border-radius:8px; cursor:pointer; font-size:14px; font-weight:500; }
+    .btn:hover { background:var(--accent-strong); }
+    .btn.ghost { background:#e2e8f0; color:#1e293b; }
+    .btn.ghost:hover { background:#cbd5e1; }
+    .btn.danger { background:var(--danger); }
+    .btn.danger:hover { background:#b91c1c; }
+    .btn.small { padding:4px 8px; font-size:12px; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th, td { padding:8px 10px; text-align:left; border-bottom:1px solid var(--border); vertical-align:top; }
+    th { background:var(--panel-soft); color:#475569; font-weight:600; font-size:12px;
+         text-transform:uppercase; letter-spacing:.05em; }
+    tr:hover td { background:#f8fafc; }
+    .tag { display:inline-block; padding:2px 8px; font-size:11px; border-radius:999px;
+           background:#e0e7ff; color:#3730a3; font-weight:600; letter-spacing:.03em; }
+    .tag.core { background:#dcfce7; color:#166534; }
+    .tag.elective { background:#fef9c3; color:#854d0e; }
+    .tag.general { background:#dbeafe; color:#1e40af; }
+    .tag.prereq { background:#f1f5f9; color:#334155; margin-right:4px; }
+    .search { flex:1; min-width:220px; padding-left:32px;
+              background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='7'/><path d='m21 21-4.3-4.3'/></svg>");
+              background-repeat:no-repeat; background-position:10px center; background-size:14px 14px; }
+    .pill { padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600; }
+    .pill.ok { background:#dcfce7; color:#166534; }
+    .pill.warn { background:#fef3c7; color:#92400e; }
+    .pill.bad { background:#fee2e2; color:#991b1b; }
+    .muted { color:var(--muted); font-size:12px; }
+    .toast-wrap { position:fixed; top:16px; right:16px; display:flex; flex-direction:column;
+                  gap:10px; z-index:1000; max-width:360px; }
+    .toast { background:#fff; border-left:4px solid var(--accent);
+             box-shadow:0 10px 30px rgba(15,23,42,.18); border-radius:10px;
+             padding:12px 14px; font-size:13px; display:flex; gap:10px; align-items:flex-start;
+             animation:slideIn .25s ease-out; }
+    .toast.error { border-left-color:var(--danger); background:#fff7f7; }
+    .toast.success { border-left-color:var(--ok); }
+    .toast.warn { border-left-color:var(--warn); }
+    .toast .x { cursor:pointer; color:var(--muted); background:transparent; border:none;
+                font-size:16px; line-height:1; padding:0; }
+    @keyframes slideIn { from { transform:translateY(-10px); opacity:0; }
+                         to   { transform:translateY(0); opacity:1; } }
+    .modal-backdrop { position:fixed; inset:0; background:rgba(15,23,42,.5);
+                      display:flex; align-items:center; justify-content:center;
+                      z-index:900; animation:fadeIn .15s ease-out; }
+    .modal { background:#fff; border-radius:14px; padding:22px; width:min(480px,92vw);
+             box-shadow:0 30px 60px rgba(15,23,42,.25); }
+    .modal h3 { margin-top:0; }
+    .modal .body { font-size:14px; color:#334155; margin-bottom:18px; }
+    .modal .actions { display:flex; justify-content:flex-end; gap:8px; }
+    @keyframes fadeIn { from { opacity:0;} to { opacity:1; } }
+    .login-card { max-width:360px; margin:80px auto; padding:28px; border-radius:14px;
+                  background:#fff; box-shadow:var(--shadow); }
+    .login-card h2 { text-align:center; margin-bottom:4px; }
+    .login-card .sub { text-align:center; }
+    .login-card label { display:block; font-size:12px; color:#475569; margin-bottom:4px; margin-top:12px; }
+    .login-card .input { width:100%; }
+    .login-card .btn { width:100%; margin-top:18px; }
+    .grid-2 { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:10px; }
+    .empty { text-align:center; color:var(--muted); padding:24px; border:1px dashed var(--border);
+             border-radius:10px; background:var(--panel-soft); }
+    .danger-zone { border:1px solid #fecaca; background:#fff1f2; padding:16px; border-radius:12px; }
+    .import-box { background:#f8fafc; border:1px dashed var(--border); border-radius:10px;
+                  padding:12px; margin-top:10px; font-size:13px; }
+    .import-box .row { gap:8px; }
+  </style>
+</head>
+<body>
+
+<div id="loginView">
+  <div class="login-card">
+    <h2>FCESS Admin</h2>
+    <div class="sub">Sign in to manage the curriculum</div>
+    <label>Email</label>
+    <input id="loginEmail" class="input" type="email" value="admin@fcess.com" />
+    <label>Password</label>
+    <input id="loginPassword" class="input" type="password" value="admin123" />
+    <button id="loginBtn" class="btn">Sign in</button>
+    <div class="muted" style="margin-top:12px;text-align:center">
+      Need an admin? POST <code>/seed_admin</code> first.
+    </div>
+  </div>
+</div>
+
+<div id="appView" style="display:none">
+  <div class="topbar">
+    <h1>FCESS - Curriculum &amp; Schedule</h1>
+    <div class="grow"></div>
+    <span class="who" id="whoami"></span>
+    <button class="btn ghost" id="logoutBtn">Sign out</button>
+  </div>
+  <div class="layout">
+    <nav class="side">
+      <button data-view="departments" class="active">Departments</button>
+      <button data-view="courses">Courses</button>
+      <button data-view="faculty">Lecturers</button>
+      <button data-view="assignments">Assignments</button>
+      <button data-view="conflicts">Conflicts</button>
+      <button class="danger-btn" id="wipeBtn">Delete EVERYTHING</button>
+    </nav>
+    <main>
+      <!-- DEPARTMENTS -->
+      <section data-view="departments">
+        <h2>Departments</h2>
+        <div class="sub">Top-level container - deleting a department cascades to its courses, lecturers, and schedule.</div>
+        <div class="card">
+          <div class="row">
+            <input id="deptSearch" class="input search" placeholder="Search code or name..." />
+            <button class="btn ghost" onclick="openModal('addDept')">+ New department</button>
+            <button class="btn ghost" onclick="openImportModal('departments')">Import CSV</button>
+          </div>
+          <div id="deptTable" style="margin-top:14px"></div>
+        </div>
+      </section>
+
+      <!-- COURSES -->
+      <section data-view="courses" style="display:none">
+        <h2>Courses (Curriculum)</h2>
+        <div class="sub">Each course shows its ECTS, lecture/lab hours, course type, workload, and prerequisites.</div>
+        <div class="card">
+          <div class="row">
+            <input id="courseSearch" class="input search" placeholder="Search code or title..." />
+            <select id="courseDeptFilter" class="input"><option value="">All departments</option></select>
+            <button class="btn ghost" onclick="openModal('addCourse')">+ New course</button>
+            <button class="btn ghost" onclick="openImportModal('courses')">Import CSV</button>
+          </div>
+          <div id="courseTable" style="margin-top:14px"></div>
+        </div>
+      </section>
+
+      <!-- LECTURERS -->
+      <section data-view="faculty" style="display:none">
+        <h2>Lecturers</h2>
+        <div class="sub">Each lecturer belongs to one department; course assignments live on the next tab.</div>
+        <div class="card">
+          <div class="row">
+            <input id="facSearch" class="input search" placeholder="Search name or email..." />
+            <select id="facDeptFilter" class="input"><option value="">All departments</option></select>
+            <button class="btn ghost" onclick="openModal('addFaculty')">+ New lecturer</button>
+            <button class="btn ghost" onclick="openImportModal('faculty')">Import CSV</button>
+          </div>
+          <div id="facTable" style="margin-top:14px"></div>
+        </div>
+      </section>
+
+      <!-- ASSIGNMENTS -->
+      <section data-view="assignments" style="display:none">
+        <h2>Lecturer to Course assignments</h2>
+        <div class="sub">A lecturer can teach multiple courses. The department is inferred from the lecturer's home department.</div>
+        <div class="card">
+          <div class="row">
+            <input id="asgSearch" class="input search" placeholder="Search lecturer, course or department..." />
+            <button class="btn ghost" onclick="openModal('addAssignment')">+ Assign lecturer to course</button>
+          </div>
+          <div id="asgTable" style="margin-top:14px"></div>
+        </div>
+      </section>
+
+      <!-- CONFLICTS -->
+      <section data-view="conflicts" style="display:none">
+        <h2>Conflict detection</h2>
+        <div class="sub">Automatically scans the chosen semester for double-bookings, room clashes and prerequisite collisions.</div>
+        <div class="card">
+          <div class="row">
+            <select id="conflictSemester" class="input"><option value="">Pick a semester...</option></select>
+            <button class="btn" onclick="loadConflicts()">Scan now</button>
+            <span class="muted">Re-scans automatically every time you open this tab.</span>
+          </div>
+          <div id="conflictResults" style="margin-top:14px"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toasts"></div>
+<div id="modalRoot"></div>
+
+<script>
+const API = "/api/v1";
+let TOKEN = localStorage.getItem("fcess_token");
+const CACHE = {
+  depts: [], courses: [], faculty: [], assignments: [], semesters: [],
+  prerequisitesByCourse: {}    // course_id -> [prereq course codes]
+};
+
+// CSV import metadata used by openImportModal()
+const IMPORT_META = {
+  departments: {
+    title: "Import Departments CSV",
+    columns: "code, name",
+    endpoint: "departments"
+  },
+  courses: {
+    title: "Import Courses CSV",
+    columns: "code, title, department_code, credit_hours, lecture_hours, lab_hours, curriculum_year, course_type, workload, prerequisites",
+    endpoint: "courses"
+  },
+  faculty: {
+    title: "Import Lecturers CSV",
+    columns: "first_name, last_name, email, department_code, rank, max_load_hours",
+    endpoint: "faculty"
+  },
+  rooms: {
+    title: "Import Rooms CSV",
+    columns: "building_code, building_name, room_number, capacity, type",
+    endpoint: "rooms"
+  }
+};
+
+function escapeHtml(s) {
+  if (s === null || s === undefined) return "";
+  return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+function toast(msg, kind, ttl) {
+  kind = kind || "info"; ttl = (ttl == null) ? 4000 : ttl;
+  const wrap = document.getElementById("toasts");
+  const el = document.createElement("div");
+  el.className = "toast " + kind;
+  el.innerHTML = '<div style="flex:1">' + escapeHtml(msg) + '</div><button class="x" aria-label="dismiss">&times;</button>';
+  el.querySelector(".x").onclick = () => el.remove();
+  wrap.appendChild(el);
+  if (ttl) setTimeout(() => el.remove(), ttl);
+}
+const toastError   = (m) => toast(m, "error", 6000);
+const toastSuccess = (m) => toast(m, "success");
+const toastWarn    = (m) => toast(m, "warn", 5000);
+
+function showModal(opts) {
+  const root = document.getElementById("modalRoot");
+  const wrap = document.createElement("div");
+  wrap.className = "modal-backdrop";
+  wrap.innerHTML =
+    '<div class="modal" role="dialog" aria-modal="true">' +
+      '<h3>' + escapeHtml(opts.title) + '</h3>' +
+      '<div class="body">' + opts.body + '</div>' +
+      '<div class="actions">' +
+        '<button class="btn ghost" data-act="cancel">' + escapeHtml(opts.cancelText || "Cancel") + '</button>' +
+        (opts.hideOk ? '' :
+          '<button class="btn ' + (opts.danger ? "danger" : "") + '" data-act="ok">' +
+            escapeHtml(opts.confirmText || "Confirm") + '</button>') +
+      '</div>' +
+    '</div>';
+  root.appendChild(wrap);
+  const close = () => wrap.remove();
+  wrap.querySelector('[data-act="cancel"]').onclick = close;
+  const okBtn = wrap.querySelector('[data-act="ok"]');
+  if (okBtn) {
+    okBtn.onclick = async () => {
+      try {
+        const data = collectModalForm(wrap);
+        const result = opts.onConfirm ? await opts.onConfirm(data, close, wrap) : null;
+        if (result !== false) close();
+      } catch (e) { toastError(e.message || "Action failed"); }
+    };
+  }
+  wrap.addEventListener("click", (e) => { if (e.target === wrap) close(); });
+  if (opts.onMount) opts.onMount(wrap, close);
+  setTimeout(() => {
+    const f = wrap.querySelector("input,select,textarea");
+    if (f) f.focus();
+  }, 50);
+  return { wrap, close };
+}
+function collectModalForm(wrap) {
+  const inputs = wrap.querySelectorAll("[name]");
+  const out = {};
+  inputs.forEach(i => { out[i.name] = (i.type === "checkbox") ? i.checked : i.value; });
+  return out;
+}
+
+async function api(path, opts) {
+  opts = opts || {};
+  const headers = opts.headers || {};
+  if (TOKEN) headers["Authorization"] = "Bearer " + TOKEN;
+  if (opts.json !== undefined) {
+    headers["Content-Type"] = "application/json";
+    opts.body = JSON.stringify(opts.json);
+    delete opts.json;
+  }
+  const res = await fetch(API + path, Object.assign({}, opts, { headers }));
+  if (res.status === 401) { logout(); throw new Error("Session expired - please sign in again."); }
+  const ct = res.headers.get("content-type") || "";
+  const data = ct.includes("application/json") ? await res.json().catch(() => null) : await res.text();
+  if (!res.ok) {
+    const msg = (data && data.detail) ? data.detail : (typeof data === "string" ? data : "HTTP " + res.status);
+    throw new Error(Array.isArray(msg) ? msg.map(m => m.msg || JSON.stringify(m)).join(", ") : msg);
+  }
+  return data;
+}
+
+document.getElementById("loginBtn").onclick = async () => {
+  const email = document.getElementById("loginEmail").value.trim();
+  const password = document.getElementById("loginPassword").value;
+  if (!email || !password) return toastError("Email and password are required.");
+  try {
+    const body = new URLSearchParams();
+    body.set("username", email);
+    body.set("password", password);
+    const res = await fetch(API + "/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: body
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Login failed");
+    TOKEN = data.access_token;
+    localStorage.setItem("fcess_token", TOKEN);
+    document.getElementById("whoami").textContent = email;
+    showApp();
+  } catch (e) { toastError(e.message); }
+};
+document.getElementById("logoutBtn").onclick = logout;
+function logout() {
+  TOKEN = null;
+  localStorage.removeItem("fcess_token");
+  document.getElementById("appView").style.display = "none";
+  document.getElementById("loginView").style.display = "block";
+}
+function showApp() {
+  document.getElementById("loginView").style.display = "none";
+  document.getElementById("appView").style.display = "block";
+  refreshAll();
+}
+
+document.querySelectorAll("nav.side button[data-view]").forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll("nav.side button[data-view]").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    const v = btn.dataset.view;
+    document.querySelectorAll("main > section").forEach(s => {
+      s.style.display = (s.dataset.view === v) ? "block" : "none";
+    });
+    if (v === "conflicts") loadConflicts();
+  };
+});
+
+async function refreshAll() {
+  try {
+    // courses + prerequisites have to be loaded before rendering so each row
+    // can show its prereq codes
+    await refreshDepts();
+    await Promise.all([refreshCourses(), refreshFaculty(), refreshAssignments(), refreshSemesters()]);
+  } catch (e) { toastError(e.message); }
+}
+
+async function loadPrerequisites() {
+  // Build a map: course_id -> list of prerequisite course codes
+  try {
+    const rows = await api("/catalog/prerequisites");
+    const byCourse = {};
+    const codeById = {};
+    CACHE.courses.forEach(c => codeById[c.id] = c.code);
+    rows.forEach(p => {
+      const code = codeById[p.prerequisite_course_id] || "?";
+      if (!byCourse[p.course_id]) byCourse[p.course_id] = [];
+      byCourse[p.course_id].push(code);
+    });
+    CACHE.prerequisitesByCourse = byCourse;
+  } catch (e) {
+    CACHE.prerequisitesByCourse = {};
+  }
+}
+
+// -------------------- Departments --------------------
+async function refreshDepts() {
+  const q = document.getElementById("deptSearch").value.trim();
+  const rows = await api("/catalog/departments" + (q ? "?q=" + encodeURIComponent(q) : ""));
+  CACHE.depts = rows;
+  renderDepts(rows);
+  ["courseDeptFilter","facDeptFilter"].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const prev = el.value;
+    el.innerHTML = '<option value="">All departments</option>' +
+      rows.map(d => '<option value="' + d.id + '">' + escapeHtml(d.code) + ' - ' + escapeHtml(d.name) + '</option>').join("");
+    el.value = prev || "";
+  });
+}
+function renderDepts(rows) {
+  const el = document.getElementById("deptTable");
+  if (!rows.length) { el.innerHTML = '<div class="empty">No departments yet.</div>'; return; }
+  el.innerHTML =
+    '<table><thead><tr><th>Code</th><th>Name</th><th></th></tr></thead><tbody>' +
+    rows.map(d =>
+      '<tr><td><span class="tag">' + escapeHtml(d.code) + '</span></td>' +
+      '<td>' + escapeHtml(d.name) + '</td>' +
+      '<td style="text-align:right"><button class="btn ghost small" onclick="confirmDeleteDept(\'' + d.id + '\',\'' + escapeHtml(d.code) + '\')">Delete</button></td></tr>'
+    ).join("") + '</tbody></table>';
+}
+document.getElementById("deptSearch").addEventListener("input", debounce(refreshDepts, 200));
+
+function confirmDeleteDept(id, code) {
+  showModal({
+    title: "Delete department " + code + "?",
+    body: '<p>This will <strong>cascade</strong> and delete:</p>' +
+          '<ul><li>All courses in <code>' + code + '</code></li>' +
+          '<li>All lecturers in <code>' + code + '</code></li>' +
+          '<li>All sessions and assignments tied to them</li></ul>',
+    confirmText: "Delete department", danger: true,
+    onConfirm: async () => {
+      try { await api("/catalog/departments/" + id, { method: "DELETE" });
+            toastSuccess("Department " + code + " deleted."); await refreshAll();
+      } catch (e) { toastError(e.message); return false; }
+    }
+  });
+}
+
+// -------------------- Courses --------------------
+async function refreshCourses() {
+  const q = document.getElementById("courseSearch").value.trim();
+  const dept = document.getElementById("courseDeptFilter").value;
+  const params = new URLSearchParams();
+  if (q) params.set("q", q);
+  if (dept) params.set("department_id", dept);
+  const rows = await api("/catalog/courses" + (params.toString() ? "?" + params : ""));
+  CACHE.courses = rows;
+  await loadPrerequisites();
+  renderCourses(rows);
+}
+function renderCourses(rows) {
+  const el = document.getElementById("courseTable");
+  if (!rows.length) { el.innerHTML = '<div class="empty">No courses yet - import a CSV or add one.</div>'; return; }
+  el.innerHTML =
+    '<table><thead><tr>' +
+      '<th>Code</th><th>Title</th><th>Dept</th><th>Year</th>' +
+      '<th>ECTS</th><th>Lec / Lab</th><th>Type</th><th>Workload</th>' +
+      '<th>Prerequisites</th><th></th>' +
+    '</tr></thead><tbody>' +
+    rows.map(c => {
+      const dept = CACHE.depts.find(d => d.id === c.department_id);
+      const t = (c.course_type || "").toLowerCase();
+      const tag = c.course_type ? '<span class="tag ' + t + '">' + escapeHtml(c.course_type) + '</span>' : "-";
+      const prereqs = (CACHE.prerequisitesByCourse[c.id] || []);
+      const prereqHtml = prereqs.length
+        ? prereqs.map(p => '<span class="tag prereq">' + escapeHtml(p) + '</span>').join("")
+        : '<span class="muted">none</span>';
+      return '<tr>' +
+        '<td><strong>' + escapeHtml(c.code) + '</strong></td>' +
+        '<td>' + escapeHtml(c.title) + '</td>' +
+        '<td>' + (dept ? escapeHtml(dept.code) : "?") + '</td>' +
+        '<td>' + c.curriculum_year + '</td>' +
+        '<td>' + c.credit_hours + '</td>' +
+        '<td>' + c.lecture_hours + ' / ' + c.lab_hours + '</td>' +
+        '<td>' + tag + '</td>' +
+        '<td>' + (c.workload == null ? "-" : c.workload) + '</td>' +
+        '<td>' + prereqHtml + '</td>' +
+        '<td style="text-align:right"><button class="btn ghost small" onclick="confirmDeleteCourse(\'' + c.id + '\',\'' + escapeHtml(c.code) + '\')">Delete</button></td></tr>';
+    }).join("") + '</tbody></table>';
+}
+document.getElementById("courseSearch").addEventListener("input", debounce(refreshCourses, 200));
+document.getElementById("courseDeptFilter").addEventListener("change", refreshCourses);
+
+function confirmDeleteCourse(id, code) {
+  showModal({
+    title: "Delete course " + code + "?",
+    body: "<p>This removes the course, its sections, sessions, prerequisites and lecturer assignments.</p>",
+    confirmText: "Delete course", danger: true,
+    onConfirm: async () => {
+      try { await api("/catalog/courses/" + id, { method: "DELETE" });
+            toastSuccess("Course " + code + " deleted."); await refreshAll();
+      } catch (e) { toastError(e.message); return false; }
+    }
+  });
+}
+
+// -------------------- Lecturers --------------------
+async function refreshFaculty() {
+  const q = document.getElementById("facSearch").value.trim();
+  const dept = document.getElementById("facDeptFilter").value;
+  const params = new URLSearchParams();
+  if (q) params.set("q", q);
+  if (dept) params.set("department_id", dept);
+  const rows = await api("/catalog/faculty" + (params.toString() ? "?" + params : ""));
+  CACHE.faculty = rows;
+  renderFaculty(rows);
+}
+function renderFaculty(rows) {
+  const el = document.getElementById("facTable");
+  if (!rows.length) { el.innerHTML = '<div class="empty">No lecturers yet.</div>'; return; }
+  el.innerHTML =
+    '<table><thead><tr><th>Name</th><th>Email</th><th>Department</th><th>Rank</th><th>Max load</th><th></th></tr></thead><tbody>' +
+    rows.map(f => {
+      const dept = CACHE.depts.find(d => d.id === f.department_id);
+      return '<tr>' +
+        '<td>' + escapeHtml(f.first_name) + ' ' + escapeHtml(f.last_name) + '</td>' +
+        '<td>' + escapeHtml(f.email) + '</td>' +
+        '<td>' + (dept ? escapeHtml(dept.code) : "?") + '</td>' +
+        '<td><span class="tag">' + escapeHtml(f.rank) + '</span></td>' +
+        '<td>' + f.max_load_hours + '</td>' +
+        '<td style="text-align:right"><button class="btn ghost small" onclick="confirmDeleteFaculty(\'' + f.id + '\',\'' + escapeHtml(f.first_name + " " + f.last_name) + '\')">Delete</button></td></tr>';
+    }).join("") + '</tbody></table>';
+}
+document.getElementById("facSearch").addEventListener("input", debounce(refreshFaculty, 200));
+document.getElementById("facDeptFilter").addEventListener("change", refreshFaculty);
+
+function confirmDeleteFaculty(id, name) {
+  showModal({
+    title: "Remove lecturer " + name + "?",
+    body: "<p>Their course assignments and sessions will also be removed.</p>",
+    confirmText: "Remove lecturer", danger: true,
+    onConfirm: async () => {
+      try { await api("/catalog/faculty/" + id, { method: "DELETE" });
+            toastSuccess("Removed " + name + "."); await refreshAll();
+      } catch (e) { toastError(e.message); return false; }
+    }
+  });
+}
+
+// -------------------- Assignments --------------------
+async function refreshAssignments() {
+  const q = document.getElementById("asgSearch").value.trim();
+  const rows = await api("/catalog/assignments" + (q ? "?q=" + encodeURIComponent(q) : ""));
+  CACHE.assignments = rows;
+  renderAssignments(rows);
+}
+function renderAssignments(rows) {
+  const el = document.getElementById("asgTable");
+  if (!rows.length) { el.innerHTML = '<div class="empty">No assignments yet. Use "+ Assign lecturer to course".</div>'; return; }
+  el.innerHTML =
+    '<table><thead><tr><th>Lecturer</th><th>Course</th><th>Department</th><th></th></tr></thead><tbody>' +
+    rows.map(a =>
+      '<tr><td>' + escapeHtml(a.faculty_name || "?") + '</td>' +
+      '<td><strong>' + escapeHtml(a.course_code || "?") + '</strong></td>' +
+      '<td>' + escapeHtml(a.department_code || "?") + '</td>' +
+      '<td style="text-align:right"><button class="btn ghost small" onclick="confirmDeleteAssignment(\'' + a.id + '\')">Unassign</button></td></tr>'
+    ).join("") + '</tbody></table>';
+}
+document.getElementById("asgSearch").addEventListener("input", debounce(refreshAssignments, 200));
+
+function confirmDeleteAssignment(id) {
+  showModal({
+    title: "Remove assignment?",
+    body: "<p>The lecturer will be unassigned from this course.</p>",
+    confirmText: "Unassign", danger: true,
+    onConfirm: async () => {
+      try { await api("/catalog/assignments/" + id, { method: "DELETE" });
+            toastSuccess("Assignment removed."); await refreshAssignments();
+      } catch (e) { toastError(e.message); return false; }
+    }
+  });
+}
+
+// -------------------- Conflicts --------------------
+async function refreshSemesters() {
+  try {
+    const rows = await api("/scheduling/semesters");
+    CACHE.semesters = rows;
+    const sel = document.getElementById("conflictSemester");
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">Pick a semester...</option>' +
+      rows.map(s => '<option value="' + s.id + '">' + escapeHtml(s.name) + '</option>').join("");
+    sel.value = prev || (rows[0] && rows[0].id) || "";
+  } catch (_) {}
+}
+async function loadConflicts() {
+  const semId = document.getElementById("conflictSemester").value;
+  const wrap = document.getElementById("conflictResults");
+  if (!semId) { wrap.innerHTML = '<div class="empty">Pick a semester to scan.</div>'; return; }
+  wrap.innerHTML = '<div class="muted">Scanning...</div>';
+  try {
+    const res = await api("/scheduling/conflicts/" + semId);
+    if (!res.conflicts.length) {
+      wrap.innerHTML = '<div class="empty"><span class="pill ok">No conflicts</span> &nbsp; Schedule looks clean.</div>';
+      toastSuccess("No conflicts detected.");
+      return;
+    }
+    toastWarn(res.conflicts.length + " conflict(s) detected.");
+    wrap.innerHTML =
+      '<table><thead><tr><th>Type</th><th>Description</th><th>Day</th><th>Start</th></tr></thead><tbody>' +
+      res.conflicts.map(c =>
+        '<tr><td><span class="pill bad">' + escapeHtml(c.type) + '</span></td>' +
+        '<td>' + escapeHtml(c.description) + '</td>' +
+        '<td>' + (["Mon","Tue","Wed","Thu","Fri","Sat","Sun"][c.day] || c.day) + '</td>' +
+        '<td>' + escapeHtml(c.start_slot) + '</td></tr>'
+      ).join("") + '</tbody></table>';
+  } catch (e) { toastError(e.message); wrap.innerHTML = '<div class="empty">Failed to load conflicts.</div>'; }
+}
+
+// -------------------- Inline CSV import modal --------------------
+function openImportModal(entity) {
+  const meta = IMPORT_META[entity];
+  if (!meta) return toastError("Unknown import target: " + entity);
+  showModal({
+    title: meta.title,
+    hideOk: true,
+    cancelText: "Close",
+    body:
+      '<p class="muted">Expected columns:</p>' +
+      '<div class="import-box"><code>' + escapeHtml(meta.columns) + '</code></div>' +
+      '<div class="row" style="margin-top:14px">' +
+        '<button class="btn ghost" id="imp_dl">Download sample CSV</button>' +
+        '<input type="file" id="imp_file" accept=".csv" />' +
+        '<button class="btn" id="imp_up">Upload</button>' +
+      '</div>' +
+      '<p class="muted" style="margin-top:10px">Existing rows with matching codes/emails are skipped, not duplicated.</p>',
+    onMount: (wrap, close) => {
+      wrap.querySelector("#imp_dl").onclick = (e) => { e.preventDefault(); downloadSample(meta.endpoint); };
+      wrap.querySelector("#imp_up").onclick = async (e) => {
+        e.preventDefault();
+        const file = wrap.querySelector("#imp_file").files[0];
+        if (!file) return toastError("Choose a CSV file first.");
+        await runImport(meta.endpoint, file);
+        close();
+      };
+    }
+  });
+}
+
+async function runImport(entity, file) {
+  const fd = new FormData();
+  fd.append("file", file);
+  try {
+    const res = await fetch(API + "/import/" + entity, {
+      method: "POST",
+      headers: TOKEN ? { Authorization: "Bearer " + TOKEN } : {},
+      body: fd
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Import failed");
+    let msg = "Imported " + data.created + " " + entity + ", skipped " + data.skipped;
+    if (data.prerequisites_linked) msg += ", " + data.prerequisites_linked + " prerequisites linked";
+    toastSuccess(msg);
+    if (data.errors && data.errors.length) {
+      data.errors.slice(0, 5).forEach(toastWarn);
+      if (data.errors.length > 5) toastWarn("...and " + (data.errors.length - 5) + " more issues");
+    }
+    await refreshAll();
+  } catch (e) { toastError(e.message); }
+}
+
+async function downloadSample(entity) {
+  try {
+    const res = await fetch(API + "/catalog/templates/" + entity + ".csv");
+    if (!res.ok) throw new Error("Could not download sample (" + res.status + ")");
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = entity + "_sample.csv";
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    toastSuccess("Sample " + entity + ".csv downloaded.");
+  } catch (e) { toastError(e.message); }
+}
+
+// -------------------- Create modals --------------------
+function openModal(kind) {
+  if (kind === "addDept") {
+    showModal({
+      title: "New department",
+      body: '<label class="muted">Code</label><input class="input" name="code" placeholder="CS" style="width:100%" />' +
+            '<label class="muted" style="margin-top:8px;display:block">Name</label><input class="input" name="name" placeholder="Computer Science" style="width:100%" />',
+      confirmText: "Create",
+      onConfirm: async (form) => {
+        if (!form.code || !form.name) { toastError("Code and name required."); return false; }
+        try { await api("/catalog/departments", { method: "POST", json: { code: form.code, name: form.name } });
+              toastSuccess("Department " + form.code + " created."); await refreshAll();
+        } catch (e) { toastError(e.message); return false; }
+      }
+    });
+  }
+  else if (kind === "addCourse") {
+    if (!CACHE.depts.length) { toastError("Create a department first."); return; }
+    const deptOpts = CACHE.depts.map(d => '<option value="' + d.id + '">' + escapeHtml(d.code) + ' - ' + escapeHtml(d.name) + '</option>').join("");
+    const courseOpts = CACHE.courses.map(c => '<option value="' + c.code + '">' + escapeHtml(c.code + " - " + c.title) + '</option>').join("");
+    showModal({
+      title: "New course",
+      body:
+        '<div class="grid-2">' +
+          '<div><label class="muted">Code</label><input class="input" name="code" placeholder="CS101" style="width:100%"/></div>' +
+          '<div><label class="muted">Title</label><input class="input" name="title" placeholder="Intro to Programming" style="width:100%"/></div>' +
+          '<div><label class="muted">Department</label><select class="input" name="department_id" style="width:100%">' + deptOpts + '</select></div>' +
+          '<div><label class="muted">Curriculum year</label><input class="input" name="curriculum_year" type="number" value="1" min="1" max="6" style="width:100%"/></div>' +
+          '<div><label class="muted">ECTS (credit hours)</label><input class="input" name="credit_hours" type="number" step="0.5" value="3" style="width:100%"/></div>' +
+          '<div><label class="muted">Lecture hours</label><input class="input" name="lecture_hours" type="number" value="3" style="width:100%"/></div>' +
+          '<div><label class="muted">Lab hours</label><input class="input" name="lab_hours" type="number" value="0" style="width:100%"/></div>' +
+          '<div><label class="muted">Workload</label><input class="input" name="workload" type="number" step="0.5" placeholder="5" style="width:100%"/></div>' +
+          '<div style="grid-column: span 2"><label class="muted">Course type</label>' +
+            '<select class="input" name="course_type" style="width:100%">' +
+              '<option value="">- None -</option><option value="CORE">Core</option>' +
+              '<option value="ELECTIVE">Elective</option><option value="GENERAL">General</option>' +
+            '</select></div>' +
+          '<div style="grid-column: span 2"><label class="muted">Prerequisites (course codes, semi-colon separated)</label>' +
+            '<input class="input" name="prerequisites" placeholder="CS101;MA101" style="width:100%"/>' +
+            '<div class="muted" style="margin-top:4px">Available course codes: ' +
+              (CACHE.courses.length ? CACHE.courses.slice(0, 12).map(c => '<code>'+escapeHtml(c.code)+'</code>').join(" ") +
+                                       (CACHE.courses.length > 12 ? " ..." : "")
+                                    : '<em>none yet</em>') + '</div>' +
+          '</div>' +
+        '</div>',
+      confirmText: "Create course",
+      onConfirm: async (form) => {
+        if (!form.code || !form.title || !form.department_id) { toastError("Code, title and department are required."); return false; }
+        try {
+          const created = await api("/catalog/courses", { method: "POST", json: {
+            code: form.code, title: form.title, department_id: form.department_id,
+            credit_hours: parseFloat(form.credit_hours || 0),
+            lecture_hours: parseInt(form.lecture_hours || 0),
+            lab_hours: parseInt(form.lab_hours || 0),
+            curriculum_year: parseInt(form.curriculum_year || 1),
+            course_type: form.course_type || null,
+            workload: form.workload ? parseFloat(form.workload) : null
+          }});
+          // Wire up prerequisites (best-effort - errors become warn toasts)
+          const codes = (form.prerequisites || "").split(/[;,]/).map(s => s.trim().toUpperCase()).filter(Boolean);
+          for (const code of codes) {
+            const prereq = CACHE.courses.find(c => c.code === code);
+            if (!prereq) { toastWarn("Prerequisite '" + code + "' not found - skipped"); continue; }
+            if (prereq.id === created.id) continue;
+            try {
+              await api("/scheduling/prerequisites", { method: "POST", json: {
+                course_id: created.id, prerequisite_course_id: prereq.id
+              }});
+            } catch (e) { toastWarn("Prereq " + code + ": " + e.message); }
+          }
+          toastSuccess("Course " + form.code + " created.");
+          await refreshCourses();
+        } catch (e) { toastError(e.message); return false; }
+      }
+    });
+  }
+  else if (kind === "addFaculty") {
+    if (!CACHE.depts.length) return toastError("Create a department first.");
+    const deptOpts = CACHE.depts.map(d => '<option value="' + d.id + '">' + escapeHtml(d.code) + ' - ' + escapeHtml(d.name) + '</option>').join("");
+    showModal({
+      title: "New lecturer",
+      body:
+        '<div class="grid-2">' +
+          '<div><label class="muted">First name</label><input class="input" name="first_name" style="width:100%"/></div>' +
+          '<div><label class="muted">Last name</label><input class="input" name="last_name" style="width:100%"/></div>' +
+          '<div style="grid-column: span 2"><label class="muted">Email</label><input class="input" name="email" type="email" style="width:100%"/></div>' +
+          '<div><label class="muted">Department</label><select class="input" name="department_id" style="width:100%">' + deptOpts + '</select></div>' +
+          '<div><label class="muted">Rank</label><select class="input" name="rank" style="width:100%">' +
+            '<option>PROFESSOR</option><option selected>LECTURER</option><option>ASSISTANT</option></select></div>' +
+          '<div><label class="muted">Max load hours</label><input class="input" name="max_load_hours" type="number" step="0.5" value="16" style="width:100%"/></div>' +
+        '</div>',
+      confirmText: "Create lecturer",
+      onConfirm: async (form) => {
+        if (!form.first_name || !form.last_name || !form.email) { toastError("Name and email are required."); return false; }
+        try {
+          await api("/catalog/faculty", { method: "POST", json: {
+            first_name: form.first_name, last_name: form.last_name, email: form.email,
+            department_id: form.department_id, rank: form.rank,
+            max_load_hours: parseFloat(form.max_load_hours || 0)
+          }});
+          toastSuccess(form.first_name + " " + form.last_name + " added.");
+          await refreshFaculty();
+        } catch (e) { toastError(e.message); return false; }
+      }
+    });
+  }
+  else if (kind === "addAssignment") {
+    if (!CACHE.faculty.length) return toastError("Create a lecturer first.");
+    if (!CACHE.courses.length) return toastError("Create a course first.");
+    const facOpts = CACHE.faculty.map(f => '<option value="' + f.id + '">' + escapeHtml(f.first_name + " " + f.last_name) + '</option>').join("");
+    const courseOpts = CACHE.courses.map(c => '<option value="' + c.id + '">' + escapeHtml(c.code + " - " + c.title) + '</option>').join("");
+    showModal({
+      title: "Assign lecturer to course",
+      body:
+        '<label class="muted">Lecturer</label><select class="input" name="faculty_id" style="width:100%">' + facOpts + '</select>' +
+        '<label class="muted" style="margin-top:10px;display:block">Course</label><select class="input" name="course_id" style="width:100%">' + courseOpts + '</select>' +
+        '<p class="muted" style="margin-top:10px">Department is set automatically from the lecturer\'s home department.</p>',
+      confirmText: "Assign",
+      onConfirm: async (form) => {
+        try {
+          await api("/catalog/assignments", { method: "POST", json: { faculty_id: form.faculty_id, course_id: form.course_id }});
+          toastSuccess("Lecturer assigned to course.");
+          await refreshAssignments();
+        } catch (e) { toastError(e.message); return false; }
+      }
+    });
+  }
+}
+
+document.getElementById("wipeBtn").onclick = () => {
+  showModal({
+    title: "Delete EVERYTHING?",
+    body: '<p>This permanently removes every department, course, lecturer, assignment, room and schedule session.</p>' +
+          '<div class="danger-zone"><label class="muted">Type <code>DELETE</code> below to confirm.</label>' +
+          '<input class="input" name="confirm" placeholder="DELETE" style="width:100%;margin-top:6px"/></div>',
+    confirmText: "Delete everything", danger: true,
+    onConfirm: async (form) => {
+      if (form.confirm !== "DELETE") { toastError('Type "DELETE" to confirm.'); return false; }
+      try {
+        const r = await api("/catalog/wipe?scope=all", { method: "POST" });
+        toastSuccess("Wiped. Removed: " + JSON.stringify(r.deleted));
+        await refreshAll();
+      } catch (e) { toastError(e.message); return false; }
+    }
+  });
+};
+
+function debounce(fn, ms) {
+  let t;
+  return function() { const a = arguments; clearTimeout(t); t = setTimeout(() => fn.apply(null, a), ms); };
+}
+
+(async function boot() {
+  if (TOKEN) {
+    try { await api("/catalog/departments?limit=1"); showApp(); }
+    catch (_) { logout(); }
+  }
+})();
+</script>
+</body>
+</html>

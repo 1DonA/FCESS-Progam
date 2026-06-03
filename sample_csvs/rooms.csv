@@ -1,0 +1,6 @@
+building_code,building_name,room_number,capacity,type
+MAIN,Main Building,101,60,LECTURE_HALL
+MAIN,Main Building,102,40,SEMINAR
+MAIN,Main Building,201,30,LAB
+SCI,Science Block,101,80,LECTURE_HALL
+SCI,Science Block,102,25,LAB

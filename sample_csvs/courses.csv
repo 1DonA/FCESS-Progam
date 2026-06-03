@@ -1,0 +1,7 @@
+code,title,department_code,credit_hours,lecture_hours,lab_hours,curriculum_year
+CS101,Introduction to Programming,CS,3,2,1,1
+CS201,Data Structures,CS,3,3,0,2
+CS301,Algorithms,CS,3,3,0,3
+CS401,Software Engineering,CS,4,3,1,4
+MATH101,Calculus I,MATH,3,3,0,1
+MATH201,Linear Algebra,MATH,3,2,1,2
