@@ -249,7 +249,7 @@ async def patch_user(
     return user
 
 
-@router.delete("/users/{user_id}", status_code=204)
+@router.delete("/users/{user_id}")
 async def delete_user(
     user_id: str,
     db: AsyncSession = Depends(deps.get_db),
@@ -257,15 +257,26 @@ async def delete_user(
 ):
     """Admin: delete a user account. Refuses to delete oneself."""
     _require_admin(current_user)
-    target_id = uuid.UUID(str(user_id))
-    if target_id == current_user.id:
+    try:
+        target_id = uuid.UUID(str(user_id))
+    except Exception:
+        raise HTTPException(status_code=400, detail=f"Invalid user id: {user_id}")
+    # Compare as strings to dodge any Uuid-vs-str mismatch
+    if str(target_id) == str(current_user.id):
         raise HTTPException(status_code=400, detail="You can't delete your own account.")
     user = (await db.execute(select(User).where(User.id == target_id))).scalar_one_or_none()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found.")
-    await db.delete(user)
-    await db.commit()
-    return None
+        raise HTTPException(status_code=404, detail=f"User {user_id} not found.")
+    try:
+        await db.delete(user)
+        await db.commit()
+    except Exception as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Delete failed: {type(exc).__name__}: {str(exc)[:200]}"
+        )
+    return {"ok": True, "deleted_email": user.email}
 
 
 @router.post("/users/{user_id}/password", status_code=200)

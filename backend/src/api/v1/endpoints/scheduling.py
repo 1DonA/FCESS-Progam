@@ -93,9 +93,16 @@ async def clear_schedule(
 @router.get("/view/{semester_id}")
 async def view_schedule(
     semester_id: uuid.UUID,
+    department_id: Optional[uuid.UUID] = None,
     db: AsyncSession = Depends(deps.get_db),
     current_user: deps.User = Depends(deps.get_current_user)
 ):
+    """Returns every session for the semester.
+
+    `department_id` (optional): drill down to a single department's schedule.
+    For an admin this is any department; for a chair it must be a department
+    inside their faculty subtree (otherwise the chair scoping still applies
+    and the param has no extra effect)."""
     stmt = (
         select(Session)
         .where(Session.semester_id == semester_id)
@@ -143,6 +150,14 @@ async def view_schedule(
             s for s in sessions
             if s.section and s.section.course
             and s.section.course.department_id in scope_set
+        ]
+
+    # Optional per-department drill-down (e.g., chair of Engineering picks CMPE)
+    if department_id is not None:
+        sessions = [
+            s for s in sessions
+            if s.section and s.section.course
+            and s.section.course.department_id == department_id
         ]
 
     # Transform to DTO
@@ -516,9 +531,16 @@ async def faculty_load_report(
     db: AsyncSession = Depends(deps.get_db),
     current_user: deps.User = Depends(deps.get_current_user)
 ):
-    """FR-6, FR-13: Return teaching load summary for each faculty, optionally filtered by department."""
+    """FR-6, FR-13: Return teaching load summary for each faculty, optionally filtered by department.
+    CHAIR users see only lecturers in their own faculty subtree."""
     stmt = select(FacultyModel).where(FacultyModel.is_active == True)
-    if department_id:
+    # Chair scoping: clamp to their subtree
+    subtree = await _chair_scope_dept_ids(db, current_user)
+    if subtree is not None:
+        if not subtree:
+            return []
+        stmt = stmt.where(FacultyModel.department_id.in_(subtree))
+    elif department_id:
         stmt = stmt.where(FacultyModel.department_id == department_id)
     fac_result = await db.execute(stmt)
     faculty_list = fac_result.scalars().all()
@@ -667,7 +689,8 @@ async def get_conflicts(
     db: AsyncSession = Depends(deps.get_db),
     current_user: deps.User = Depends(deps.get_current_user)
 ):
-    """FR-12, FR-14: Scan and return all scheduling conflicts for a semester."""
+    """FR-12, FR-14: Scan and return all scheduling conflicts for a semester.
+    CHAIR users only see conflicts whose courses belong to their faculty subtree."""
     from datetime import datetime, timedelta
     stmt = (
         select(Session)
@@ -680,6 +703,16 @@ async def get_conflicts(
     )
     result = await db.execute(stmt)
     sessions = list(result.scalars().all())
+
+    # Chair scoping: drop any session whose course is outside chair's subtree
+    subtree = await _chair_scope_dept_ids(db, current_user)
+    if subtree is not None:
+        scope_set = set(subtree)
+        sessions = [
+            s for s in sessions
+            if s.section and s.section.course
+            and s.section.course.department_id in scope_set
+        ]
 
     conflicts = []
 
@@ -1336,19 +1369,23 @@ async def curriculum_coverage(
     db: AsyncSession = Depends(deps.get_db),
     current_user: deps.User = Depends(deps.get_current_user),
 ):
-    """For each curriculum year × department, return which courses are scheduled
-    vs unscheduled in the given semester. Catches "I forgot to schedule MA201"
-    type bugs before they hit students.
-    """
+    """For each curriculum year x department, return which courses are scheduled
+    vs unscheduled in the given semester. Catches forgot-to-schedule bugs early."""
     from backend.src.modules.catalog.models import Course as C
-    courses = (await db.execute(select(C).where(C.is_active == True))).scalars().all()  # noqa: E712
-    # All section ids that have at least one session
+    courses_stmt = select(C).where(C.is_active == True)  # noqa: E712
+    # Chair scoping: clamp courses list to the chair's faculty subtree
+    subtree = await _chair_scope_dept_ids(db, current_user)
+    if subtree is not None:
+        if not subtree:
+            return []
+        courses_stmt = courses_stmt.where(C.department_id.in_(subtree))
+    courses = (await db.execute(courses_stmt)).scalars().all()
+
     scheduled_section_ids = {
         r[0] for r in (await db.execute(
             select(Session.section_id).where(Session.semester_id == semester_id)
         )).all()
     }
-    # Map course -> [section_ids in this semester]
     sec_rows = (await db.execute(
         select(Section).where(Section.semester_id == semester_id)
     )).scalars().all()

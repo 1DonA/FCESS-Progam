@@ -27,6 +27,26 @@ from backend.src.modules.scheduling.services.conflict_detector import ConflictDe
 router = APIRouter()
 
 
+async def _chair_subtree(db: AsyncSession, user) -> Optional[list]:
+    """Return list of department ids visible to a CHAIR (their own + sub-depts
+    if at top-level faculty). None for ADMIN (no scoping)."""
+    role = (getattr(user, "role", "") or "").upper()
+    if role != "CHAIR":
+        return None
+    dep_id = getattr(user, "department_id", None)
+    if not dep_id:
+        return []
+    my = (await db.execute(select(Department).where(Department.id == dep_id))).scalar_one_or_none()
+    if not my:
+        return []
+    if my.parent_id is None:
+        children = (await db.execute(
+            select(Department.id).where(Department.parent_id == my.id)
+        )).scalars().all()
+        return [my.id, *children]
+    return [my.id]
+
+
 class RoomRequestCreate(BaseModel):
     requester_department_id: uuid.UUID
     room_id: uuid.UUID
@@ -166,11 +186,19 @@ async def list_incoming(
     db: AsyncSession = Depends(deps.get_db),
     current_user = Depends(deps.get_current_user),
 ):
-    """Requests addressed to my department (the room owner)."""
-    dept = department_id or current_user.department_id
-    if not dept:
-        return []
-    stmt = select(RoomRequest).where(RoomRequest.owner_department_id == dept)
+    """Requests addressed to my department(s) (the room owner).
+    For a top-level Faculty chair, returns requests addressed to ANY of their
+    sub-departments too."""
+    subtree = await _chair_subtree(db, current_user)
+    if subtree is not None:
+        if not subtree:
+            return []
+        stmt = select(RoomRequest).where(RoomRequest.owner_department_id.in_(subtree))
+    else:
+        dept = department_id or current_user.department_id
+        if not dept:
+            return []
+        stmt = select(RoomRequest).where(RoomRequest.owner_department_id == dept)
     if status:
         stmt = stmt.where(RoomRequest.status == status.upper())
     stmt = stmt.order_by(RoomRequest.created_at.desc())
@@ -185,11 +213,17 @@ async def list_outgoing(
     db: AsyncSession = Depends(deps.get_db),
     current_user = Depends(deps.get_current_user),
 ):
-    """Requests my department has sent to other departments."""
-    dept = department_id or current_user.department_id
-    if not dept:
-        return []
-    stmt = select(RoomRequest).where(RoomRequest.requester_department_id == dept)
+    """Requests my department(s) have sent to other departments."""
+    subtree = await _chair_subtree(db, current_user)
+    if subtree is not None:
+        if not subtree:
+            return []
+        stmt = select(RoomRequest).where(RoomRequest.requester_department_id.in_(subtree))
+    else:
+        dept = department_id or current_user.department_id
+        if not dept:
+            return []
+        stmt = select(RoomRequest).where(RoomRequest.requester_department_id == dept)
     if status:
         stmt = stmt.where(RoomRequest.status == status.upper())
     stmt = stmt.order_by(RoomRequest.created_at.desc())

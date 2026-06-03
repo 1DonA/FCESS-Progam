@@ -198,6 +198,16 @@ async def _chair_dept_subtree(db: AsyncSession, user) -> Optional[list[uuid.UUID
 # ---------------------------------------------------------------------------
 # Departments
 # ---------------------------------------------------------------------------
+@router.get("/public/departments", response_model=List[DepartmentRead])
+async def read_departments_public(
+    db: AsyncSession = Depends(deps.get_db),
+):
+    """Public list of every department (no auth) for the Signup page so users
+    can pick their faculty/department BEFORE they have an account."""
+    result = await db.execute(select(Department).order_by(Department.code))
+    return result.scalars().all()
+
+
 @router.get("/departments", response_model=List[DepartmentRead])
 async def read_departments(
     q: Optional[str] = Query(None, description="Search code or name"),

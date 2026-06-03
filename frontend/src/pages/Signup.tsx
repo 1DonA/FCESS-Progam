@@ -36,7 +36,10 @@ export function Signup() {
     });
 
     useEffect(() => {
-        apiClient.get<Department[]>('/catalog/departments')
+        // Use the PUBLIC endpoint — Signup is reached before the user has a
+        // token, so /catalog/departments would 401. /catalog/public/departments
+        // is intentionally unauthenticated.
+        apiClient.get<Department[]>('/catalog/public/departments')
             .then((r) => setDepartments(r.data))
             .catch(() => setDepartments([]));
     }, []);
