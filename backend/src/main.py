@@ -39,14 +39,21 @@ from backend.src.core.security import get_password_hash
 from sqlalchemy import select
 
 
-@app.post("/seed_admin")
-async def seed_admin_endpoint():
+async def _do_seed_admin():
+    """Create admin@fcess.com / admin123 if it doesn't already exist."""
     async with AsyncSessionLocal() as db:
         admin_email = "admin@fcess.com"
         stmt = select(User).where(User.email == admin_email)
         result = await db.execute(stmt)
-        if result.scalar_one_or_none():
-            return {"message": "Admin already exists"}
+        existing = result.scalar_one_or_none()
+        if existing:
+            # Re-hash the password so we know the credentials are correct
+            existing.hashed_password = get_password_hash("admin123")
+            existing.role = "ADMIN"
+            existing.is_active = True
+            await db.commit()
+            return {"message": "Admin already existed - password reset to admin123",
+                    "email": admin_email}
 
         admin = User(
             id=uuid.uuid4(),
@@ -58,7 +65,19 @@ async def seed_admin_endpoint():
         )
         db.add(admin)
         await db.commit()
-        return {"message": "Admin created", "email": admin_email}
+        return {"message": "Admin created", "email": admin_email,
+                "password": "admin123"}
+
+
+@app.post("/seed_admin")
+async def seed_admin_post():
+    return await _do_seed_admin()
+
+
+@app.get("/seed_admin")
+async def seed_admin_get():
+    """Browser-friendly alias so you can just paste the URL and hit Enter."""
+    return await _do_seed_admin()
 
 
 @app.get("/health")
