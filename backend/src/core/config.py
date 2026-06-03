@@ -29,10 +29,10 @@ def _normalise_database_url(raw: str) -> str:
         return url
 
     # postgres://...  ->  postgresql+asyncpg://...
-    if url.startswith("postgres://"):
-        url = "postgresql+asyncpg://" + url[len("postgres://"):]
-    elif url.startswith("postgresql://"):
-        url = "postgresql+asyncpg://" + url[len("postgresql://"):]
+    if url.startswith("postgresql://fcess_db_user:521UVr0eMbVo42TzRn3HQkOGEhLkYhsB@dpg-d8fr2qeq1p3s73clgpe0-a/fcess_db"):
+        url = "postgresql+asyncpg://" + url[len("postgresql://fcess_db_user:521UVr0eMbVo42TzRn3HQkOGEhLkYhsB@dpg-d8fr2qeq1p3s73clgpe0-a/fcess_db"):]
+    elif url.startswith("postgresql://fcess_db_user:521UVr0eMbVo42TzRn3HQkOGEhLkYhsB@dpg-d8fr2qeq1p3s73clgpe0-a/fcess_db"):
+        url = "postgresql+asyncpg://" + url[len("postgresql://fcess_db_user:521UVr0eMbVo42TzRn3HQkOGEhLkYhsB@dpg-d8fr2qeq1p3s73clgpe0-a/fcess_db"):]
 
     # CRITICAL: strip ALL ssl params - asyncpg gets SSL via connect_args, not URL.
     url = _strip_ssl_params(url)
